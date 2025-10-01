@@ -27,6 +27,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         "metadata",
         "created_at",
         "updated_at",
+        "images.*",
         "variants.*",
         "variants.prices.*", // Esto obtiene TODOS los precios
       ],
