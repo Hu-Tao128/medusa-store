@@ -2138,7 +2138,7 @@
     bullmq "5.13.0"
     ioredis "^5.4.1"
 
-"@medusajs/file-local@2.10.3":
+"@medusajs/file-local@2.10.3", "@medusajs/file-local@^2.10.3":
   version "2.10.3"
   resolved "https://registry.yarnpkg.com/@medusajs/file-local/-/file-local-2.10.3.tgz#5651d6c3441c5a2c15f753778c70064eec5f87ca"
   integrity sha512-JNztOmxSrTXET7xdmhHiMqc8G+ce5/k0YMh/M9I/rNdNXUAUcXCrqE/wRnUM5x5/3Ple9LlCd3Dpl/sJdgzGkg==

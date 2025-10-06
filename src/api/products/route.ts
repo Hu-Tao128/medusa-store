@@ -29,7 +29,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         "updated_at",
         "images.*",
         "variants.*",
-        "variants.prices.*", // Esto obtiene TODOS los precios
+        "variants.prices.*",
+        "categories.*",
       ],
       filters: {
         status: ["published"],

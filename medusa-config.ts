@@ -1,9 +1,8 @@
-import { loadEnv, defineConfig } from '@medusajs/framework/utils'
-import path from 'path'
+import { loadEnv, defineConfig } from "@medusajs/framework/utils"
 
-loadEnv(process.env.NODE_ENV || 'development', process.cwd())
+loadEnv(process.env.NODE_ENV || "development", process.cwd())
 
-module.exports = defineConfig({
+export default defineConfig({
   projectConfig: {
     databaseUrl: process.env.DATABASE_URL,
     http: {
@@ -12,10 +11,12 @@ module.exports = defineConfig({
       authCors: process.env.AUTH_CORS!,
       jwtSecret: process.env.JWT_SECRET || "supersecret",
       cookieSecret: process.env.COOKIE_SECRET || "supersecret",
-    }
+    },
   },
-  modules: [
-    {
+  //@ts-ignore
+  modulesConfig: {
+    // 👇 Forma correcta para Medusa 2.x
+    file: {
       resolve: "@medusajs/file",
       options: {
         providers: [
@@ -23,12 +24,13 @@ module.exports = defineConfig({
             resolve: "@medusajs/file-local",
             id: "local",
             options: {
-              upload_dir: path.resolve(__dirname, "static/uploads"),
-              base_url: "/uploads",
+              upload_dir: "static/uploads", // Carpeta física
+              base_url: `${process.env.BACKEND_URL}/uploads`, // URL pública
+              serve: true, // Esto habilita el servidor estático interno
             },
           },
         ],
       },
     },
-  ],
+  },
 })
