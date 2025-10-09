@@ -32,7 +32,10 @@
     "@mikro-orm/knex": "6.4.3",
     "@mikro-orm/migrations": "6.4.3",
     "@mikro-orm/postgresql": "6.4.3",
+    "@types/bcryptjs": "^3.0.0",
     "awilix": "^8.0.1",
+    "bcryptjs": "^3.0.2",
+    "firebase-admin": "^13.5.0",
     "pg": "^8.13.0"
   },
   "devDependencies": {

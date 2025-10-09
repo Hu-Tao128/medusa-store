@@ -15,7 +15,6 @@ export default defineConfig({
   },
   //@ts-ignore
   modulesConfig: {
-    // 👇 Forma correcta para Medusa 2.x
     file: {
       resolve: "@medusajs/file",
       options: {
