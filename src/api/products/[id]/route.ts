@@ -59,6 +59,10 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         "images.*",
         "variants.*",
         "variants.prices.*",
+        // incluir inventory_items y dentro el objeto inventory con location_levels
+        "variants.inventory_items.*",
+        "variants.inventory_items.inventory.*",
+        "variants.inventory_items.inventory.location_levels.*",
         "categories.*",
       ],
       filters: {
@@ -70,17 +74,51 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       return res.status(404).json({ error: "Producto no encontrado" })
     }
 
+    // helper para extraer cantidad de un location_level o inventory item
+    const qtyFromLevelValue = (lvl: any) =>
+      Number(lvl?.stocked_quantity ?? lvl?.quantity ?? lvl?.available ?? lvl?.available_quantity ?? lvl?.qty ?? 0)
+
     const formatted = {
       ...product,
-      variants: product.variants?.map((variant: any) => ({
-        ...variant,
-        price_set: {
-          prices: (variant.price_set?.prices || variant.prices || []).map((p: any) =>
-            normalizePriceObject(p)
-          ),
-        },
-        prices: (variant.prices || []).map((p: any) => normalizePriceObject(p))
-      }))
+      variants: product.variants?.map((variant: any) => {
+        // normalizar inventory_items -> calcular cantidades por inventory_item y total por variante
+        const inventory_items = (variant.inventory_items || []).map((pv: any) => {
+          const inv = pv.inventory || {}
+
+          // location_levels puede venir dentro de inventory.location_levels o en pv.location_levels
+          const location_levels = inv.location_levels || pv.location_levels || []
+
+          const total_by_item = (location_levels || []).reduce((sum: number, lvl: any) => {
+            return sum + qtyFromLevelValue(lvl)
+          }, 0)
+
+          // fallback: si inventory tiene un campo directo de cantidad
+          const fallbackQty = Number(inv?.quantity ?? pv?.quantity ?? 0)
+
+          return {
+            ...pv,
+            inventory: {
+              ...inv,
+              location_levels: location_levels,
+            },
+            total_quantity: total_by_item || fallbackQty,
+          }
+        })
+
+        const total_variant_quantity = inventory_items.reduce((s: number, it: any) => s + Number(it.total_quantity || 0), 0)
+
+        return {
+          ...variant,
+          price_set: {
+            prices: (variant.price_set?.prices || variant.prices || []).map((p: any) =>
+              normalizePriceObject(p)
+            ),
+          },
+          prices: (variant.prices || []).map((p: any) => normalizePriceObject(p)),
+          inventory_items,
+          total_quantity: total_variant_quantity,
+        }
+      })
     }
 
     res.json({ product: formatted })
