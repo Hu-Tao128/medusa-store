@@ -4,10 +4,11 @@ import admin from "../../firebase/config-firebase"
 // POST: Registrar usuario con datos de Firebase
 export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
   const { email, firebaseUid } = req.body as { email?: string; firebaseUid?: string }
-    console.log("=== POST /customer ===")
+  console.log("=== POST /customer ===")
   console.log("Origin:", req.headers.origin)
   console.log("Method:", req.method)
   console.log("Body:", req.body)
+  
   if (!email || !firebaseUid) {
     return res.status(400).json({ error: "Email and firebaseUid are required" })
   }
@@ -17,6 +18,10 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
     if (!firebaseUser || firebaseUser.email !== email) {
       return res.status(401).json({ error: "Invalid Firebase user" })
     }
+
+    // Extrae nombre y apellido de Firebase
+    const displayName = firebaseUser.displayName || ""
+    const [firstName = "", lastName = ""] = displayName.split(" ")
 
     // En Medusa v2, usa query para buscar y el módulo para crear
     const query = req.scope.resolve("query")
@@ -31,10 +36,22 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
     let customer
     if (customers && customers.length > 0) {
       customer = customers[0]
+      // Si el customer existe pero no tiene nombre, actualízalo
+      if (!customer.first_name && firstName) {
+        const customerModule = req.scope.resolve("customer")
+        customer = await customerModule.updateCustomers(customer.id, {
+          first_name: firstName,
+          last_name: lastName
+        })
+      }
     } else {
-      // Si no existe, créalo usando el módulo de customer
+      // Si no existe, créalo con nombre y apellido
       const customerModule = req.scope.resolve("customer")
-      customer = await customerModule.createCustomers({ email })
+      customer = await customerModule.createCustomers({
+        email,
+        first_name: firstName,
+        last_name: lastName
+      })
     }
 
     return res.json({ customer })
