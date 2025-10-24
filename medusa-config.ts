@@ -15,6 +15,7 @@ export default defineConfig({
   },
   //@ts-ignore
   modulesConfig: {
+    // Configuración de File (la que ya tienes funcionando)
     file: {
       resolve: "@medusajs/file",
       options: {
@@ -23,12 +24,32 @@ export default defineConfig({
             resolve: "@medusajs/file-local",
             id: "local",
             options: {
-              upload_dir: "static/uploads", // Carpeta física
-              base_url: `${process.env.BACKEND_URL}/uploads`, // URL pública
-              serve: true, // Esto habilita el servidor estático interno
+              upload_dir: "static/uploads",
+              serve_url: `${process.env.BACKEND_URL}/uploads`,
+              serve: true,
             },
           },
         ],
+      },
+    },
+    
+    // CONFIGURACIÓN CORRECTA DE STRIPE
+    stripe_payment: {
+      resolve: "@medusajs/payment-stripe",
+      options: {
+        api_key: process.env.STRIPE_API_KEY,
+        webhook_secret: process.env.STRIPE_WEBHOOK_SECRET,
+      },
+    },
+    
+    // CONFIGURACIÓN CORRECTA DE PAYPAL
+    paypal_payment: {
+      resolve: "@medusajs/payment-paypal",
+      options: {
+        sandbox: process.env.PAYPAL_SANDBOX === "true",
+        client_id: process.env.PAYPAL_CLIENT_ID,
+        client_secret: process.env.PAYPAL_CLIENT_SECRET,
+        auth_webhook_secret: process.env.PAYPAL_AUTH_WEBHOOK_SECRET,
       },
     },
   },

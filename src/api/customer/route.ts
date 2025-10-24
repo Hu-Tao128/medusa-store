@@ -1,5 +1,6 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import admin from "../../firebase/config-firebase"
+import jwt from "jsonwebtoken" // ⬅️ Necesitarás instalar: npm install jsonwebtoken
 
 // POST: Registrar usuario con datos de Firebase
 export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
@@ -19,14 +20,11 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
       return res.status(401).json({ error: "Invalid Firebase user" })
     }
 
-    // Extrae nombre y apellido de Firebase
     const displayName = firebaseUser.displayName || ""
     const [firstName = "", lastName = ""] = displayName.split(" ")
 
-    // En Medusa v2, usa query para buscar y el módulo para crear
     const query = req.scope.resolve("query")
     
-    // Busca el customer por email usando el query
     const { data: customers } = await query.graph({
       entity: "customer",
       fields: ["id", "email", "first_name", "last_name", "created_at"],
@@ -34,9 +32,10 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
     })
 
     let customer
+
     if (customers && customers.length > 0) {
       customer = customers[0]
-      // Si el customer existe pero no tiene nombre, actualízalo
+      
       if (!customer.first_name && firstName) {
         const customerModule = req.scope.resolve("customer")
         customer = await customerModule.updateCustomers(customer.id, {
@@ -45,7 +44,6 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
         })
       }
     } else {
-      // Si no existe, créalo con nombre y apellido
       const customerModule = req.scope.resolve("customer")
       customer = await customerModule.createCustomers({
         email,
@@ -54,7 +52,25 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
       })
     }
 
-    return res.json({ customer })
+    // ⬇️ NUEVO: Generar token JWT de Medusa
+    const jwtSecret = process.env.JWT_SECRET || "supersecret"
+    const medusaToken = jwt.sign(
+      {
+        customer_id: customer.id,
+        email: customer.email,
+        type: "customer"
+      },
+      jwtSecret,
+      { expiresIn: "30d" }
+    )
+
+    console.log("✅ Customer sincronizado y token generado:", customer.id)
+
+    return res.json({ 
+      customer,
+      medusaToken // ⬅️ Devolver el token
+    })
+
   } catch (err: any) {
     console.error("Error en POST /customer:", err)
     return res.status(500).json({ 
@@ -67,11 +83,13 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
 // GET: Obtener usuario autenticado usando el token de Firebase
 export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
   const authHeader = req.headers.authorization
+  
   if (!authHeader) {
     return res.status(401).json({ error: "No authorization header" })
   }
 
   const token = authHeader.replace("Bearer ", "")
+
   try {
     const decodedToken = await admin.auth().verifyIdToken(token)
     const email = decodedToken.email
@@ -80,7 +98,6 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
       return res.status(401).json({ error: "No email found in token" })
     }
 
-    // Usa query para buscar el customer
     const query = req.scope.resolve("query")
     const { data: customers } = await query.graph({
       entity: "customer",
@@ -94,7 +111,23 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
       return res.status(404).json({ error: "Customer not found" })
     }
 
-    return res.json({ customer })
+    // ⬇️ NUEVO: Generar token JWT de Medusa también en GET
+    const jwtSecret = process.env.JWT_SECRET || "supersecret"
+    const medusaToken = jwt.sign(
+      {
+        customer_id: customer.id,
+        email: customer.email,
+        type: "customer"
+      },
+      jwtSecret,
+      { expiresIn: "30d" }
+    )
+
+    return res.json({ 
+      customer,
+      medusaToken // ⬅️ Devolver el token
+    })
+
   } catch (err: any) {
     console.error("Error en GET /customer:", err)
     return res.status(401).json({ 

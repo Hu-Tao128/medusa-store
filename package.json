@@ -28,6 +28,7 @@
     "@medusajs/file-s3": "^2.10.3",
     "@medusajs/framework": "2.10.3",
     "@medusajs/medusa": "2.10.3",
+    "@medusajs/payment-stripe": "^2.11.0",
     "@mikro-orm/core": "6.4.3",
     "@mikro-orm/knex": "6.4.3",
     "@mikro-orm/migrations": "6.4.3",
@@ -36,6 +37,7 @@
     "awilix": "^8.0.1",
     "bcryptjs": "^3.0.2",
     "firebase-admin": "^13.5.0",
+    "medusa-payment-paypal": "^6.0.5",
     "nodemailer": "^7.0.9",
     "pg": "^8.13.0"
   },
