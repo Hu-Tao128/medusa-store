@@ -12,6 +12,92 @@ type SendEmailBody = {
   custom_data?: Record<string, any>
 }
 
+function normalizeMedusaPrices(order: any): any {
+  if (!order) return order
+
+  console.log('🔍 DEBUG - Precios antes de normalizar:')
+  console.log('Total:', order.total)
+  console.log('Subtotal:', order.subtotal)
+
+  // --- 🔧 Función para extraer número puro ---
+  const extractNumericValue = (value: any): number => {
+    if (!value) return 0
+    if (typeof value.toNumber === 'function') return value.toNumber()
+    if (typeof value.numeric_ !== 'undefined') return Number(value.numeric_) || 0
+    if (typeof value === 'number') return value
+    if (typeof value === 'string') return Number(value) || 0
+    return 0
+  }
+
+  // --- ⚙️ Detección de centavos (fallback) ---
+  const maybeInCents = (price: number) => price > 1e6
+  const safeConvert = (price: number) => (maybeInCents(price) ? price / 100 : price)
+
+  // --- 💰 Formateador ---
+  const formatNumber = (value: number): string => {
+    return new Intl.NumberFormat('es-MX', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value)
+  }
+
+  // --- 📦 Normaliza y formatea ---
+  const normalizeAndFormat = (val: any) => {
+    const raw = safeConvert(extractNumericValue(val))
+    const formatted = formatNumber(raw)
+    return { raw, formatted }
+  }
+
+  const totals = {
+    total: normalizeAndFormat(order.total),
+    subtotal: normalizeAndFormat(order.subtotal),
+    tax_total: normalizeAndFormat(order.tax_total),
+    shipping_total: normalizeAndFormat(order.shipping_total),
+  }
+
+  const items =
+    order.items?.map((item: any) => {
+      const unit_price = normalizeAndFormat(item.unit_price)
+      const subtotal = normalizeAndFormat(item.subtotal)
+      const total = normalizeAndFormat(item.total)
+
+      return {
+        ...item,
+        unit_price_raw: unit_price.raw,
+        unit_price_formatted: unit_price.formatted,
+        subtotal_raw: subtotal.raw,
+        subtotal_formatted: subtotal.formatted,
+        total_raw: total.raw,
+        total_formatted: total.formatted,
+      }
+    }) || []
+
+  const normalizedOrder = {
+    ...order,
+    total_raw: totals.total.raw,
+    total_formatted: totals.total.formatted,
+    subtotal_raw: totals.subtotal.raw,
+    subtotal_formatted: totals.subtotal.formatted,
+    tax_total_raw: totals.tax_total.raw,
+    tax_total_formatted: totals.tax_total.formatted,
+    shipping_total_raw: totals.shipping_total.raw,
+    shipping_total_formatted: totals.shipping_total.formatted,
+    items,
+  }
+
+  console.log('✅ DEBUG - Precios normalizados (formateados incluidos):')
+  console.table({
+    total_raw: normalizedOrder.total_raw,
+    total_formatted: normalizedOrder.total_formatted,
+    subtotal_raw: normalizedOrder.subtotal_raw,
+    subtotal_formatted: normalizedOrder.subtotal_formatted,
+    shipping_total_raw: normalizedOrder.shipping_total_raw,
+    shipping_total_formatted: normalizedOrder.shipping_total_formatted,
+  })
+
+  return normalizedOrder
+}
+
 /**
  * POST /api/sendConfirmation
  * Enviar email transaccional
@@ -77,6 +163,9 @@ export async function POST(req: MedusaRequest<SendEmailBody>, res: MedusaRespons
           })
         }
 
+        // NORMALIZAR PRECIOS DE LA ORDEN - clave aquí
+        order = normalizeMedusaPrices(order)
+
         // Si no se especificó customer_id, usar el de la orden
         if (!customer_id && order?.customer_id) {
           customer = order?.customer || null
@@ -130,7 +219,7 @@ export async function POST(req: MedusaRequest<SendEmailBody>, res: MedusaRespons
     const emailPayload = {
       to: recipientEmail,
       type,
-      order,
+      order, // Ya con precios normalizados
       customer,
       data: {
         tracking_number,
