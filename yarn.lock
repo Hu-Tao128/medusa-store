@@ -2296,15 +2296,24 @@
     bullmq "5.13.0"
     ioredis "^5.4.1"
 
-"@medusajs/file-local@2.10.3", "@medusajs/file-local@^2.10.3":
+"@medusajs/file-local@2.10.3":
   version "2.10.3"
   resolved "https://registry.yarnpkg.com/@medusajs/file-local/-/file-local-2.10.3.tgz#5651d6c3441c5a2c15f753778c70064eec5f87ca"
   integrity sha512-JNztOmxSrTXET7xdmhHiMqc8G+ce5/k0YMh/M9I/rNdNXUAUcXCrqE/wRnUM5x5/3Ple9LlCd3Dpl/sJdgzGkg==
 
-"@medusajs/file-s3@2.10.3", "@medusajs/file-s3@^2.10.3":
+"@medusajs/file-s3@2.10.3":
   version "2.10.3"
   resolved "https://registry.yarnpkg.com/@medusajs/file-s3/-/file-s3-2.10.3.tgz#d26123f3da99ef1d7c7a084863d79422c9110ec1"
   integrity sha512-XlgaG+4uA6nROIHfwZuy++rPKITMs9Rp3o2VJgY+6x1k/+wsnpZfFAd/mnlXCgQMR/PoH61UuKL73YDyWHq+xA==
+  dependencies:
+    "@aws-sdk/client-s3" "^3.556.0"
+    "@aws-sdk/s3-request-presigner" "^3.556.0"
+    ulid "^2.3.0"
+
+"@medusajs/file-s3@^2.11.2":
+  version "2.11.2"
+  resolved "https://registry.yarnpkg.com/@medusajs/file-s3/-/file-s3-2.11.2.tgz#a167bc144e24a1938f8a131518075190471c4f83"
+  integrity sha512-FSpAjJn14LB2lxR6Tj5/N/NuR5jpuUtq0DLeMGK3COVxYBfIv0l5i5sRi+LjG5YNgfmxlhaSYylYelE24A8AbQ==
   dependencies:
     "@aws-sdk/client-s3" "^3.556.0"
     "@aws-sdk/s3-request-presigner" "^3.556.0"

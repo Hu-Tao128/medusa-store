@@ -24,8 +24,7 @@
   "dependencies": {
     "@medusajs/admin-sdk": "2.10.3",
     "@medusajs/cli": "2.10.3",
-    "@medusajs/file-local": "^2.10.3",
-    "@medusajs/file-s3": "^2.10.3",
+    "@medusajs/file-s3": "^2.11.2",
     "@medusajs/framework": "2.10.3",
     "@medusajs/medusa": "2.10.3",
     "@medusajs/payment-stripe": "^2.11.0",
