@@ -13,12 +13,22 @@ export default defineConfig({
       cookieSecret: process.env.COOKIE_SECRET || "supersecret",
     },
   },
-  //@ts-ignore
+
+  // ✅ usa objeto, no array
+  modules: {
+    customProducts: {
+      resolve: "./src/modules/custom-products",
+      definition: {
+        isQueryable: true,
+      },
+    },
+  },
+
   modulesConfig: {
     file: {
       resolve: "@medusajs/file",
       options: {
-        default_provider: "s3", // 👈 IMPORTANTE
+        default_provider: "s3",
         providers: [
           {
             resolve: "@medusajs/file-s3",
@@ -35,8 +45,7 @@ export default defineConfig({
         ],
       },
     },
-    
-    // CONFIGURACIÓN CORRECTA DE STRIPE
+
     stripe_payment: {
       resolve: "@medusajs/payment-stripe",
       options: {
@@ -44,8 +53,7 @@ export default defineConfig({
         webhook_secret: process.env.STRIPE_WEBHOOK_SECRET,
       },
     },
-    
-    // CONFIGURACIÓN CORRECTA DE PAYPAL
+
     paypal_payment: {
       resolve: "@medusajs/payment-paypal",
       options: {

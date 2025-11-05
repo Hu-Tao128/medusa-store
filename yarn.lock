@@ -2310,15 +2310,6 @@
     "@aws-sdk/s3-request-presigner" "^3.556.0"
     ulid "^2.3.0"
 
-"@medusajs/file-s3@^2.11.2":
-  version "2.11.2"
-  resolved "https://registry.yarnpkg.com/@medusajs/file-s3/-/file-s3-2.11.2.tgz#a167bc144e24a1938f8a131518075190471c4f83"
-  integrity sha512-FSpAjJn14LB2lxR6Tj5/N/NuR5jpuUtq0DLeMGK3COVxYBfIv0l5i5sRi+LjG5YNgfmxlhaSYylYelE24A8AbQ==
-  dependencies:
-    "@aws-sdk/client-s3" "^3.556.0"
-    "@aws-sdk/s3-request-presigner" "^3.556.0"
-    ulid "^2.3.0"
-
 "@medusajs/file@2.10.3":
   version "2.10.3"
   resolved "https://registry.yarnpkg.com/@medusajs/file/-/file-2.10.3.tgz#ee5f421c8ce202cba6e424b6d0f7010110e84e13"
@@ -2526,13 +2517,6 @@
   version "2.10.3"
   resolved "https://registry.yarnpkg.com/@medusajs/payment-stripe/-/payment-stripe-2.10.3.tgz#54929d86e8d55d47cb1c9260dccbf34fe52c3f3b"
   integrity sha512-tf1Q01Et/ZBc723E7HTtX7ZAvV/icOhLWuzb6sEaavmGqSpX6CPEcm7+pm2/ux5qkafomxmCC6DdX8w8GY/1UQ==
-  dependencies:
-    stripe "^15.5.0"
-
-"@medusajs/payment-stripe@^2.11.0":
-  version "2.11.0"
-  resolved "https://registry.yarnpkg.com/@medusajs/payment-stripe/-/payment-stripe-2.11.0.tgz#fffeec9796041c5e63768e48b267951e0a312d64"
-  integrity sha512-evwcZ6dndDFn963isvtO/w3qgwubLZx6mba1Be6uXejjk5IveFu8PcznQ+Y00T2Ir98JTmYp87DQNW18FsUYow==
   dependencies:
     stripe "^15.5.0"
 

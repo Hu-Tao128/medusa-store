@@ -24,10 +24,10 @@
   "dependencies": {
     "@medusajs/admin-sdk": "2.10.3",
     "@medusajs/cli": "2.10.3",
-    "@medusajs/file-s3": "^2.11.2",
+    "@medusajs/file-s3": "2.10.3",
     "@medusajs/framework": "2.10.3",
     "@medusajs/medusa": "2.10.3",
-    "@medusajs/payment-stripe": "^2.11.0",
+    "@medusajs/payment-stripe": "2.10.3",
     "@mikro-orm/core": "6.4.3",
     "@mikro-orm/knex": "6.4.3",
     "@mikro-orm/migrations": "6.4.3",
