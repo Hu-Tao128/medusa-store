@@ -1,49 +1,29 @@
 import { MedusaService } from "@medusajs/framework/utils"
-import { Custom } from "../../models/custom"
+import { Custom } from "./models/custom"
 
 class CustomProductsService extends MedusaService({ Custom }) {
   async getRecommendations(productId: string, type: string = "all") {
-    try {
-      // ✅ Usa el método del repositorio (ya inyectado por MedusaService)
-      const customRecords = await this.list({
-        product_id: productId,
-      })
+    const records = await this.listCustoms({ product_id: productId })
+    if (records.length === 0) return []
 
-      if (customRecords.length === 0) return []
+    const record = records[0]
+    let productIds: string[] = []
 
-      const customRecord = customRecords[0]
-      let productIds: string[] = []
+    if (type === "upsell" || type === "all") productIds.push(...(record.upsell_products || []))
+    if (type === "cross_sell" || type === "all") productIds.push(...(record.cross_sell_products || []))
+    if (type === "related" || type === "all") productIds.push(...(record.related_products || []))
 
-      if (type === "upsell" || type === "all") {
-        productIds.push(...(customRecord.upsell_products || []))
-      }
-      if (type === "cross_sell" || type === "all") {
-        productIds.push(...(customRecord.cross_sell_products || []))
-      }
-      if (type === "related" || type === "all") {
-        productIds.push(...(customRecord.related_products || []))
-      }
+    productIds = [...new Set(productIds)].filter(pid => pid && pid !== productId)
+    if (productIds.length === 0) return []
 
-      // Elimina duplicados y el propio id
-      productIds = [...new Set(productIds)].filter(pid => pid && pid !== productId)
+    const query = this.remoteQuery
+    const { data } = await query.graph({
+      entity: "product",
+      fields: ["id", "title", "handle", "thumbnail"],
+      filters: { id: productIds },
+    })
 
-      if (productIds.length === 0) return []
-
-      // ✅  Consulta remota solo si hay productos
-      const query = this.remoteQuery_
-      const { data } = await query.graph({
-        entity: "product",
-        fields: ["id", "title", "handle", "thumbnail", "variants"],
-        filters: { id: productIds },
-        limit: 4,
-      })
-
-      return data
-
-    } catch (error) {
-      console.error("Error in getRecommendations:", error)
-      return []
-    }
+    return data
   }
 }
 

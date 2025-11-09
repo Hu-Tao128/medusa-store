@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  medusa:
+    build: .
+    container_name: medusa_server
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://medusa:medusa@db:5432/medusa
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15-alpine
+    container_name: medusa_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: medusa
+      POSTGRES_PASSWORD: medusa
+      POSTGRES_DB: medusa
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

@@ -23,7 +23,7 @@ export default defineConfig({
       },
     },
   },
-
+  //@ts-ignore
   modulesConfig: {
     file: {
       resolve: "@medusajs/file",

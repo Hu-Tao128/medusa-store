@@ -1,26 +1,25 @@
-import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import type CustomProductsService from "../../../../modules/custom-products/service"
 
 export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
   const { id } = req.params
-  const { type = "all", limit = 4 } = req.query
+  const { type = "all" } = req.query
 
   try {
-    // ✅ 1. Resolver el servicio desde el scope del request
-    const customProductsService = req.scope.resolve("customProductsService")
+    const customProducts = req.scope.resolve("customProducts")
 
-    // ✅ 2. Llamar a un método seguro dentro del service
-    const recommendations = await customProductsService.getRecommendations(id, type as string)
+    // Si tienes el método getRecommendations en el service:
+    const recommendations = await customProducts.getRecommendations(id, type as string)
+
 
     res.json({
-      recommendations,
-      count: recommendations.length,
-      type,
       product_id: id,
+      type,
+      count: recommendations.length,
+      recommendations,
     })
-
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in recommendations endpoint:", error)
-
     res.status(500).json({
       message: "Error fetching recommendations",
       error: error.message,
