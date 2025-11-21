@@ -1,6 +1,9 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import type { IProductModuleService, IPricingModuleService } from "@medusajs/framework/types"
 import { Modules } from "@medusajs/framework/utils"
+import jwt from "jsonwebtoken"
+import SellerService from "../../modules/seller/service"
+import { createSellerProductWorkflow } from "../../workflows/create-seller-product"
 
 function normalizePriceObject(price: any) {
   const original = typeof price?.amount === "number" ? price.amount : Number(price?.amount ?? 0)
@@ -9,7 +12,7 @@ function normalizePriceObject(price: any) {
   let amount_units: number
 
   if (Number.isInteger(original) && original > 1000) {
-    
+
     amount_cents = original
     amount_units = +(original / 100).toFixed(2)
   } else {
@@ -20,10 +23,10 @@ function normalizePriceObject(price: any) {
 
   return {
     ...price,
-    amount_raw: original,      
-    amount_cents,              
-    amount_units,              
-    amount: amount_cents,      
+    amount_raw: original,
+    amount_cents,
+    amount_units,
+    amount: amount_cents,
   }
 }
 
@@ -127,7 +130,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     })
   } catch (error: any) {
     console.error("Error fetching products:", error)
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Error al obtener productos",
       message: error.message ?? String(error)
     })
@@ -143,8 +146,37 @@ type CreateProductBody = {
 }
 
 export async function POST(req: MedusaRequest<CreateProductBody>, res: MedusaResponse) {
-  const productService = req.scope.resolve(Modules.PRODUCT) as IProductModuleService
-  const pricingService = req.scope.resolve(Modules.PRICING) as IPricingModuleService
+  // 1️⃣ Auth Check
+  const authHeader = req.headers.authorization
+  if (!authHeader) {
+    return res.status(401).json({ error: "No authorization header" })
+  }
+
+  const token = authHeader.replace("Bearer ", "")
+  const jwtSecret = process.env.JWT_SECRET
+
+  if (!jwtSecret) {
+    return res.status(500).json({ error: "JWT_SECRET not configured" })
+  }
+
+  let customer_id: string
+
+  try {
+    const decoded = jwt.verify(token, jwtSecret) as { customer_id: string }
+    customer_id = decoded.customer_id
+  } catch (err) {
+    return res.status(401).json({ error: "Invalid token" })
+  }
+
+  // 2️⃣ Seller Check
+  const sellerModule = req.scope.resolve("seller") as SellerService
+  const sellers = await sellerModule.listSellers({ user_id: customer_id })
+
+  if (sellers.length === 0) {
+    return res.status(403).json({ error: "You must be a registered seller to create products" })
+  }
+
+  const seller = sellers[0]
 
   try {
     const { title, description, price, thumbnail, images, quantity } = req.body as CreateProductBody & { quantity?: number }
@@ -156,150 +188,28 @@ export async function POST(req: MedusaRequest<CreateProductBody>, res: MedusaRes
       })
     }
 
-    // Generar handle único agregando timestamp
-    const baseHandle = title.toLowerCase().replace(/\s+/g, "-")
-    const uniqueHandle = `${baseHandle}-${Date.now()}`
-
-    // 1️⃣ Crear el producto base
-    const products = await productService.createProducts([
-      {
+    // 3️⃣ Execute Workflow
+    const { result: product } = await createSellerProductWorkflow(req.scope).run({
+      input: {
         title,
-        description: description || "",
-        handle: uniqueHandle,
-        status: "published",
-        thumbnail: thumbnail || "",
-        images: images ? images.map(url => ({ url })) : [],
+        description,
+        price,
+        thumbnail,
+        images,
+        quantity,
+        seller_id: seller.id
       }
-    ])
-
-    const product = products[0]
-
-    // 2️⃣ Crear la variante (activar manejo de inventario si se envió quantity)
-    const variants = await productService.createProductVariants([
-      {
-        title: "Default",
-        product_id: product.id,
-        sku: `SKU-${Date.now()}`,
-        manage_inventory: Boolean(quantity && quantity > 0),
-      }
-    ])
-
-    const variant = variants[0]
-
-    // 3️⃣ Crear el price set para la variante
-    const priceSet = await pricingService.createPriceSets({
-      prices: [
-        {
-          amount: Math.round(price * 100),
-          currency_code: "mxn",
-        }
-      ]
     })
 
-    // 4️⃣ Vincular el price set con la variante usando Remote Link
-    const remoteLink = req.scope.resolve("remoteLink")
-    await remoteLink.create({
-      [Modules.PRODUCT]: {
-        variant_id: variant.id,
-      },
-      [Modules.PRICING]: {
-        price_set_id: priceSet.id,
-      },
-    })
-
-    // 5️⃣ Si se pidió stock inicial, intentar crear inventory item y location level
-    const qty = Number(quantity ?? 0)
-    if (qty > 0) {
-      try {
-        // resolver servicios con try/catch para evitar AwilixResolutionError si no existen
-        let inventoryService: any = null
-        let locationService: any = null
-        try {
-          inventoryService = req.scope.resolve("inventoryService")
-        } catch (e) {
-          inventoryService = null
-        }
-        try {
-          locationService = req.scope.resolve("locationService")
-        } catch (e) {
-          locationService = null
-        }
-
-        // crear inventory_item si el servicio lo soporta
-        let invItem: any = null
-        if (inventoryService && typeof inventoryService.createInventoryItem === "function") {
-          invItem = await inventoryService.createInventoryItem({
-            sku: variant.sku || `SKU-${Date.now()}`,
-            title: variant.title || product.title,
-            variant_id: variant.id,
-          })
-        } else {
-          console.warn("inventoryService.createInventoryItem no disponible en este entorno Medusa")
-        }
-
-        // obtener primera location disponible
-        let locationId: string | undefined
-        if (locationService) {
-          if (typeof locationService.list === "function") {
-            const locations = await locationService.list?.({})
-            locationId = locations?.[0]?.id
-          } else if (typeof locationService.retrieve === "function") {
-            const loc = await locationService.retrieve?.()
-            locationId = loc?.id
-          }
-        }
-
-        // crear location level (stock) si el método existe
-        if (invItem && inventoryService && typeof inventoryService.createLocationLevel === "function" && locationId) {
-          await inventoryService.createLocationLevel({
-            inventory_item_id: invItem.id,
-            location_id: locationId,
-            stocked_quantity: qty,
-          })
-        } else if (invItem && inventoryService && typeof inventoryService.setInventoryItemQuantity === "function") {
-          // fallback a otros nombres de API
-          await inventoryService.setInventoryItemQuantity(invItem.id, qty)
-        } else {
-          console.warn("No se pudo crear stock automáticamente (metodos de inventory/locations no disponibles).")
-        }
-      } catch (invErr) {
-        console.warn("Error al crear inventario inicial:", invErr)
-      }
-    }
-
-    // 6️⃣ Recuperar el producto completo con el query service
-    const query = req.scope.resolve("query")
-    const { data: [fullProduct] } = await query.graph({
-      entity: "product",
-      fields: [
-        "id",
-        "title",
-        "handle",
-        "description",
-        "thumbnail",
-        "status",
-        "created_at",
-        "images.*",
-        "variants.*",
-        "variants.prices.*",
-        // incluir campos de inventario para que el front vea cantidades
-        "variants.inventory_items.*",
-        "variants.inventory_items.inventory.*",
-        "variants.inventory_items.inventory.location_levels.*",
-      ],
-      filters: {
-        id: product.id,
-      },
-    })
-
-    res.status(201).json({ 
+    res.status(201).json({
       success: true,
-      product: fullProduct 
+      product,
+      seller_id: seller.id
     })
-    
+
   } catch (error: any) {
     console.error("Error creando producto:", error)
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       error: "Error al crear producto",
       message: error.message ?? String(error)

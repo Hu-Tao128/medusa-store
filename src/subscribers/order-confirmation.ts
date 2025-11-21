@@ -6,7 +6,7 @@ export default async function orderConfirmationHandler({
   container,
 }: SubscriberArgs<{ id: string }>) {
   try {
-    const orderService = container.resolve("order")
+    const orderService = container.resolve<any>("order")
     const logger = container.resolve("logger")
 
     const order = await orderService.retrieve(data.id, {

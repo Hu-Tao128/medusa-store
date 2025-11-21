@@ -3,9 +3,9 @@ import EmailService from "../services/email.service"
 
 export default async function fulfillmentSubscriber({
   event,
-  data,
   container,
-}: SubscriberArgs) {
+}: SubscriberArgs<{ id: string; order_id: string }>) {
+  const { data } = event
   const logger = container.resolve("logger")
   const query = container.resolve("query")
 
@@ -39,6 +39,12 @@ export default async function fulfillmentSubscriber({
     const order = orders?.[0]
     if (!order) {
       logger.warn(`⚠️ No se encontró la orden ${order_id} asociada al fulfillment ${fulfillmentId}`)
+      return
+    }
+
+    // Ensure customer email exists
+    if (!order.customer?.email) {
+      logger.warn(`⚠️ No se encontró email del cliente para la orden ${order.id}`)
       return
     }
 

@@ -55,6 +55,10 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
       return res.status(404).json({ error: "Customer not found" })
     }
 
+    if (!customer.email) {
+      return res.status(400).json({ error: "Customer has no email" })
+    }
+
     // Obtener datos de Firebase por email del customer
     const firebaseUser = await admin.auth().getUserByEmail(customer.email)
     const firebaseData = extractFirebaseUserData(firebaseUser)
@@ -84,13 +88,19 @@ export const PUT = async (req: MedusaRequest, res: MedusaResponse) => {
 const updateCustomer = async (req: MedusaRequest, res: MedusaResponse) => {
   const { id } = req.params
   const authHeader = req.headers.authorization
-  const { 
-    firstName, 
-    lastName, 
-    phoneNumber, 
+  const {
+    firstName,
+    lastName,
+    phoneNumber,
     photoUrl,
-    firebaseUid 
-  } = req.body
+    firebaseUid
+  } = req.body as {
+    firstName?: string
+    lastName?: string
+    phoneNumber?: string
+    photoUrl?: string
+    firebaseUid?: string
+  }
 
   if (!authHeader) {
     return res.status(401).json({ error: "No authorization header" })

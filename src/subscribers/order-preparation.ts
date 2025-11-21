@@ -6,14 +6,14 @@ export default async function orderPreparationHandler({
   container,
 }: SubscriberArgs<{ id: string }>) {
   try {
-    const orderService = container.resolve("order")
+    const orderService = container.resolve<any>("order")
     const logger = container.resolve("logger")
+    const order = await orderService.retrieve(data.id, { relations: ["customer"] })
 
-    const order = await orderService.retrieve(data.id, {
-      relations: ["customer"],
-    })
-
-    if (!order?.customer?.email) return logger.warn("No se encontró email del cliente")
+    if (!order?.customer?.email) {
+      logger.warn(`⚠️ No se encontró email del cliente para la orden ${order.id}`)
+      return
+    }
 
     const emailService = new EmailService({ logger })
 

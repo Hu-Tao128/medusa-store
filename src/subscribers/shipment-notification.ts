@@ -6,8 +6,8 @@ export default async function shipmentNotificationHandler({
   container,
 }: SubscriberArgs<{ fulfillment_id: string; order_id: string }>) {
   try {
-    const fulfillmentService = container.resolve("fulfillment")
-    const orderService = container.resolve("order")
+    const fulfillmentService = container.resolve<any>("fulfillment")
+    const orderService = container.resolve<any>("order")
     const logger = container.resolve("logger")
 
     const fulfillment = await fulfillmentService.retrieve(data.fulfillment_id)

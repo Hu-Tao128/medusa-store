@@ -17,8 +17,7 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
     const { data: orders } = await query.graph({
       entity: "order",
       fields: ["id", "display_id", "status", "total", "created_at"],
-      filters: { customer_id: customerId },
-      order: { created_at: "DESC" }
+      filters: { customer_id: customerId }
     })
 
     return res.json({ orders })

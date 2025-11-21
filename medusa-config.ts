@@ -1,4 +1,4 @@
-import { loadEnv, defineConfig } from "@medusajs/framework/utils"
+import { loadEnv, defineConfig, Modules } from "@medusajs/framework/utils"
 
 loadEnv(process.env.NODE_ENV || "development", process.cwd())
 
@@ -22,13 +22,12 @@ export default defineConfig({
         isQueryable: true,
       },
     },
-  },
-  //@ts-ignore
-  modulesConfig: {
-    file: {
+    seller: {
+      resolve: "./src/modules/seller",
+    },
+    [Modules.FILE]: {
       resolve: "@medusajs/file",
       options: {
-        default_provider: "s3",
         providers: [
           {
             resolve: "@medusajs/file-s3",
@@ -45,23 +44,34 @@ export default defineConfig({
         ],
       },
     },
-
-    stripe_payment: {
-      resolve: "@medusajs/payment-stripe",
+    [Modules.PAYMENT]: {
+      resolve: "@medusajs/payment",
       options: {
-        api_key: process.env.STRIPE_API_KEY,
-        webhook_secret: process.env.STRIPE_WEBHOOK_SECRET,
-      },
-    },
-
-    paypal_payment: {
-      resolve: "@medusajs/payment-paypal",
-      options: {
-        sandbox: process.env.PAYPAL_SANDBOX === "true",
-        client_id: process.env.PAYPAL_CLIENT_ID,
-        client_secret: process.env.PAYPAL_CLIENT_SECRET,
-        auth_webhook_secret: process.env.PAYPAL_AUTH_WEBHOOK_SECRET,
+        providers: [
+          {
+            resolve: "@medusajs/payment-stripe",
+            id: "stripe",
+            options: {
+              apiKey: process.env.STRIPE_API_KEY,
+              webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+            },
+          },
+          // PayPal configuration (assuming medusa-payment-paypal is compatible or using a different provider)
+          // Note: @medusajs/payment-paypal is not currently available in the registry.
+          // If you have a compatible provider, add it here.
+          // {
+          //   resolve: "medusa-payment-paypal",
+          //   id: "paypal",
+          //   options: {
+          //     sandbox: process.env.PAYPAL_SANDBOX === "true",
+          //     client_id: process.env.PAYPAL_CLIENT_ID,
+          //     client_secret: process.env.PAYPAL_CLIENT_SECRET,
+          //     auth_webhook_secret: process.env.PAYPAL_AUTH_WEBHOOK_SECRET,
+          //   },
+          // },
+        ],
       },
     },
   },
 })
+

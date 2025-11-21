@@ -12,7 +12,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     const promoService = req.scope.resolve("promotion")
     const promotions = await promoService.listPromotions({
       code: id,
-      status: "active",
+      status: ["active"],
     })
 
     if (promotions.length > 0) {
