@@ -1,4 +1,5 @@
-import type { SubscriberArgs, SubscriberConfig } from "@medusajs/framework"
+import { type SubscriberArgs, type SubscriberConfig } from "@medusajs/framework"
+import { ContainerRegistrationKeys } from "@medusajs/utils"
 import EmailService from "../services/email.service"
 
 export default async function paymentSuccessHandler({
@@ -8,42 +9,57 @@ export default async function paymentSuccessHandler({
   const logger = container.resolve("logger")
 
   try {
-    const paymentModuleService = container.resolve("payment") as any
-    const orderModuleService = container.resolve("order") as any
+    const paymentId = data.id
 
-    // Recuperar el pago capturado
-    const payment = await paymentModuleService.retrievePayment(data.id)
+    // Usar Query.graph para encontrar la orden a partir del pago.
+    // Esta es la forma recomendada y robusta de consultar datos entre módulos.
+    const query = container.resolve(ContainerRegistrationKeys.QUERY)
 
-    // Obtener la colección de pago asociada
-    const collection = await paymentModuleService.retrievePaymentCollection(
-      payment.payment_collection_id
-    )
+    // Empezamos desde la entidad 'payment' y navegamos hacia arriba hasta la 'order'.
+    const { data: payments } = await query.graph({
+      entity: "payment",
+      fields: [
+        "id",
+        "provider_id",
+        "payment_collection.order.id",
+        "payment_collection.order.display_id",
+        "payment_collection.order.customer.email",
+        "payment_collection.order.customer.first_name",
+        "payment_collection.order.items.quantity",
+        "payment_collection.order.items.title",
+        "payment_collection.order.items.total",
+        "payment_collection.order.payment_collections.payments.id",
+        "payment_collection.order.payment_collections.payments.provider_id",
+        "payment_collection.order.total",
+      ],
+      // Filtramos por el ID del pago que recibimos en el evento.
+      filters: { id: paymentId },
+    })
 
-    if (!collection?.order_id) {
-      logger.warn(
-        `⚠️ No se encontró order_id en la colección de pago ${collection?.id}`
-      )
+    const order = payments[0]?.payment_collection?.order
+
+    if (!order) {
+      logger.error(`❌ No se pudo encontrar una orden asociada al pago ${paymentId} usando Query.graph desde la entidad 'payment'.`);
       return
     }
 
-    // Recuperar la orden real
-    const order = await orderModuleService.retrieveOrder(collection.order_id, {
-      relations: ["customer"],
-    })
+    // Encontrar el pago específico para obtener el provider_id
+    const payment = order.payment_collections
+      ?.flatMap(pc => pc.payments)
+      .find(p => p.id === paymentId);
 
     if (!order?.customer?.email) {
       logger.warn("⚠️ No se encontró email del cliente en la orden.")
       return
     }
 
-    // Enviar correo
     const emailService = new EmailService({ logger })
     await emailService.sendEmail({
       to: order.customer.email,
       type: "payment",
       order,
       customer: order.customer,
-      data: { payment_method: payment.provider_id },
+      data: { payment_method: payment?.provider_id || "N/A" },
     })
 
     logger.info(`💰 Email de pago enviado a ${order.customer.email}`)

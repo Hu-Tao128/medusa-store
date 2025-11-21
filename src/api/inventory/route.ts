@@ -93,193 +93,193 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
  * Ajustar inventario de una sola variante O múltiples variantes
  * Body: { variantId, quantity } -> para un solo item
  * Body: { items: [{ variantId, quantity }, ...] } -> para múltiples items
- */
-export async function POST(req: MedusaRequest<AdjustStockBody & BatchAdjustStockBody>, res: MedusaResponse) {
-  try {
-    const { variantId, quantity, items } = req.body || {}
+//  */
+// export async function POST(req: MedusaRequest<AdjustStockBody & BatchAdjustStockBody>, res: MedusaResponse) {
+//   try {
+//     const { variantId, quantity, items } = req.body || {}
 
-    // Si viene el array "items", procesar batch
-    if (Array.isArray(items) && items.length > 0) {
-      console.log("🔄 Procesando batch de inventario con", items.length, "items")
+//     // Si viene el array "items", procesar batch
+//     if (Array.isArray(items) && items.length > 0) {
+//       console.log("🔄 Procesando batch de inventario con", items.length, "items")
       
-      const query = req.scope.resolve("query")
-      const inventoryService = req.scope.resolve(Modules.INVENTORY)
+//       const query = req.scope.resolve("query")
+//       const inventoryService = req.scope.resolve(Modules.INVENTORY)
 
-      const results: InventoryResult[] = []
-      const errors: InventoryError[] = []
+//       const results: InventoryResult[] = []
+//       const errors: InventoryError[] = []
 
-      for (const item of items) {
-        try {
-          const { variantId, quantity } = item
+//       for (const item of items) {
+//         try {
+//           const { variantId, quantity } = item
 
-          if (!variantId || typeof quantity !== "number" || quantity <= 0) {
-            errors.push({
-              variantId,
-              error: "Datos inválidos para este item",
-            })
-            continue
-          }
+//           if (!variantId || typeof quantity !== "number" || quantity <= 0) {
+//             errors.push({
+//               variantId,
+//               error: "Datos inválidos para este item",
+//             })
+//             continue
+//           }
 
-          // Obtener información de la variante
-          const { data: [variant] } = await query.graph({
-            entity: "product_variant",
-            fields: [
-              "id",
-              "manage_inventory",
-              "inventory_items.*",
-              "inventory_items.inventory.*",
-              "inventory_items.inventory.location_levels.*",
-            ],
-            filters: { id: variantId },
-          })
+//           // Obtener información de la variante
+//           const { data: [variant] } = await query.graph({
+//             entity: "product_variant",
+//             fields: [
+//               "id",
+//               "manage_inventory",
+//               "inventory_items.*",
+//               "inventory_items.inventory.*",
+//               "inventory_items.inventory.location_levels.*",
+//             ],
+//             filters: { id: variantId },
+//           })
 
-          if (!variant) {
-            errors.push({ variantId, error: "Variante no encontrada" })
-            continue
-          }
+//           if (!variant) {
+//             errors.push({ variantId, error: "Variante no encontrada" })
+//             continue
+//           }
 
-          if (!variant.manage_inventory) {
-            results.push({
-              variantId,
-              status: "skipped",
-              message: "No gestiona inventario",
-            })
-            continue
-          }
+//           if (!variant.manage_inventory) {
+//             results.push({
+//               variantId,
+//               status: "skipped",
+//               message: "No gestiona inventario",
+//             })
+//             continue
+//           }
 
-          const invItem = variant.inventory_items?.[0]
-          const invItemId = invItem?.inventory?.id
-          const locationLevel = invItem?.inventory?.location_levels?.[0]
+//           const invItem = variant.inventory_items?.[0]
+//           const invItemId = invItem?.inventory?.id
+//           const locationLevel = invItem?.inventory?.location_levels?.[0]
 
-          if (!invItemId || !locationLevel) {
-            errors.push({
-              variantId,
-              error: "No se encontró información de inventario",
-            })
-            continue
-          }
+//           if (!invItemId || !locationLevel) {
+//             errors.push({
+//               variantId,
+//               error: "No se encontró información de inventario",
+//             })
+//             continue
+//           }
 
-          const currentQty = Number(locationLevel.stocked_quantity || 0)
-          const newQty = Math.max(0, currentQty - quantity)
+//           const currentQty = Number(locationLevel.stocked_quantity || 0)
+//           const newQty = Math.max(0, currentQty - quantity)
 
-          await inventoryService.updateInventoryLevels([
-            {
-              inventory_item_id: invItemId,
-              location_id: locationLevel.location_id,
-              stocked_quantity: newQty,
-            },
-          ])
+//           await inventoryService.updateInventoryLevels([
+//             {
+//               inventory_item_id: invItemId,
+//               location_id: locationLevel.location_id,
+//               stocked_quantity: newQty,
+//             },
+//           ])
 
-          results.push({
-            variantId,
-            status: "success",
-            previous_quantity: currentQty,
-            adjusted_by: quantity,
-            new_quantity: newQty,
-          })
-        } catch (itemErr: any) {
-          errors.push({
-            variantId: item.variantId,
-            error: itemErr?.message ?? "Error procesando item",
-          })
-        }
-      }
+//           results.push({
+//             variantId,
+//             status: "success",
+//             previous_quantity: currentQty,
+//             adjusted_by: quantity,
+//             new_quantity: newQty,
+//           })
+//         } catch (itemErr: any) {
+//           errors.push({
+//             variantId: item.variantId,
+//             error: itemErr?.message ?? "Error procesando item",
+//           })
+//         }
+//       }
 
-      return res.status(200).json({
-        success: errors.length === 0,
-        processed: results.length,
-        errors: errors.length,
-        results,
-        errors_detail: errors,
-        message: `Procesados ${results.length} items, ${errors.length} errores`
-      })
-    }
+//       return res.status(200).json({
+//         success: errors.length === 0,
+//         processed: results.length,
+//         errors: errors.length,
+//         results,
+//         errors_detail: errors,
+//         message: `Procesados ${results.length} items, ${errors.length} errores`
+//       })
+//     }
     
-    // Si viene variantId y quantity individual, procesar single item
-    else if (variantId && typeof quantity === "number" && quantity > 0) {
-      console.log("🔄 Procesando single item de inventario:", { variantId, quantity })
+//     // Si viene variantId y quantity individual, procesar single item
+//     else if (variantId && typeof quantity === "number" && quantity > 0) {
+//       console.log("🔄 Procesando single item de inventario:", { variantId, quantity })
 
-      const query = req.scope.resolve("query")
-      const inventoryService = req.scope.resolve(Modules.INVENTORY)
+//       const query = req.scope.resolve("query")
+//       const inventoryService = req.scope.resolve(Modules.INVENTORY)
 
-      // Obtener información de la variante
-      const { data: [variant] } = await query.graph({
-        entity: "product_variant",
-        fields: [
-          "id",
-          "sku",
-          "title",
-          "manage_inventory",
-          "inventory_items.*",
-          "inventory_items.inventory.*",
-          "inventory_items.inventory.location_levels.*",
-        ],
-        filters: { id: variantId },
-      })
+//       // Obtener información de la variante
+//       const { data: [variant] } = await query.graph({
+//         entity: "product_variant",
+//         fields: [
+//           "id",
+//           "sku",
+//           "title",
+//           "manage_inventory",
+//           "inventory_items.*",
+//           "inventory_items.inventory.*",
+//           "inventory_items.inventory.location_levels.*",
+//         ],
+//         filters: { id: variantId },
+//       })
 
-      if (!variant) {
-        return res.status(404).json({ error: "Variante no encontrada" })
-      }
+//       if (!variant) {
+//         return res.status(404).json({ error: "Variante no encontrada" })
+//       }
 
-      if (!variant.manage_inventory) {
-        return res.status(200).json({
-          success: true,
-          message: "Variante no gestiona inventario",
-          variant_id: variantId,
-        })
-      }
+//       if (!variant.manage_inventory) {
+//         return res.status(200).json({
+//           success: true,
+//           message: "Variante no gestiona inventario",
+//           variant_id: variantId,
+//         })
+//       }
 
-      const invItem = variant.inventory_items?.[0]
-      const invItemId = invItem?.inventory?.id
+//       const invItem = variant.inventory_items?.[0]
+//       const invItemId = invItem?.inventory?.id
 
-      if (!invItemId) {
-        return res.status(404).json({
-          error: "No se encontró inventory_item",
-          variant_id: variantId,
-        })
-      }
+//       if (!invItemId) {
+//         return res.status(404).json({
+//           error: "No se encontró inventory_item",
+//           variant_id: variantId,
+//         })
+//       }
 
-      // Obtener el location level (generalmente hay uno por defecto)
-      const locationLevel = invItem.inventory?.location_levels?.[0]
+//       // Obtener el location level (generalmente hay uno por defecto)
+//       const locationLevel = invItem.inventory?.location_levels?.[0]
 
-      if (!locationLevel) {
-        return res.status(404).json({
-          error: "No se encontró location level",
-          variant_id: variantId,
-        })
-      }
+//       if (!locationLevel) {
+//         return res.status(404).json({
+//           error: "No se encontró location level",
+//           variant_id: variantId,
+//         })
+//       }
 
-      const currentQty = Number(locationLevel.stocked_quantity || 0)
-      const newQty = Math.max(0, currentQty - quantity)
+//       const currentQty = Number(locationLevel.stocked_quantity || 0)
+//       const newQty = Math.max(0, currentQty - quantity)
 
-      // Actualizar inventario
-      await inventoryService.updateInventoryLevels([
-        {
-          inventory_item_id: invItemId,
-          location_id: locationLevel.location_id,
-          stocked_quantity: newQty,
-        },
-      ])
+//       // Actualizar inventario
+//       await inventoryService.updateInventoryLevels([
+//         {
+//           inventory_item_id: invItemId,
+//           location_id: locationLevel.location_id,
+//           stocked_quantity: newQty,
+//         },
+//       ])
 
-      return res.status(200).json({
-        success: true,
-        message: "Inventario actualizado",
-        variant_id: variantId,
-        previous_quantity: currentQty,
-        adjusted_by: quantity,
-        new_quantity: newQty,
-      })
-    } else {
-      return res.status(400).json({
-        error: "Datos inválidos",
-        message: "Se requiere variantId y quantity para single item, o items array para batch",
-      })
-    }
-  } catch (err: any) {
-    console.error("POST /api/inventory error:", err)
-    return res.status(500).json({
-      error: "Error ajustando inventario",
-      message: err?.message ?? String(err),
-    })
-  }
-}
+//       return res.status(200).json({
+//         success: true,
+//         message: "Inventario actualizado",
+//         variant_id: variantId,
+//         previous_quantity: currentQty,
+//         adjusted_by: quantity,
+//         new_quantity: newQty,
+//       })
+//     } else {
+//       return res.status(400).json({
+//         error: "Datos inválidos",
+//         message: "Se requiere variantId y quantity para single item, o items array para batch",
+//       })
+//     }
+//   } catch (err: any) {
+//     console.error("POST /api/inventory error:", err)
+//     return res.status(500).json({
+//       error: "Error ajustando inventario",
+//       message: err?.message ?? String(err),
+//     })
+//   }
+// }
