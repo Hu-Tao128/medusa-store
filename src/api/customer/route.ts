@@ -102,7 +102,14 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
     }
 
     // ⬇️ NUEVO: Generar token JWT de Medusa
-    const jwtSecret = process.env.JWT_SECRET || "supersecret"
+    const jwtSecret = process.env.JWT_SECRET
+
+    if (!jwtSecret) {
+      console.error("❌ JWT_SECRET is missing in environment variables")
+      return res.status(500).json({ error: "JWT_SECRET not configured" })
+    }
+    console.log("🔑 JWT_SECRET is configured (length):", jwtSecret.length)
+
     const medusaToken = jwt.sign(
       {
         customer_id: customer.id,
@@ -114,6 +121,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
     )
 
     console.log("✅ Customer sincronizado y token generado:", customer.id)
+    console.log("🎫 Generated Token (first 10 chars):", medusaToken.substring(0, 10) + "...")
 
     return res.json({
       customer,
@@ -161,7 +169,13 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
     }
 
     // ⬇️ NUEVO: Generar token JWT de Medusa también en GET
-    const jwtSecret = process.env.JWT_SECRET || "supersecret"
+    const jwtSecret = process.env.JWT_SECRET
+
+    if (!jwtSecret) {
+      console.error("❌ JWT_SECRET is missing in environment variables")
+      return res.status(500).json({ error: "JWT_SECRET not configured" })
+    }
+    console.log("🔑 JWT_SECRET is configured (length):", jwtSecret.length)
     const medusaToken = jwt.sign(
       {
         customer_id: customer.id,

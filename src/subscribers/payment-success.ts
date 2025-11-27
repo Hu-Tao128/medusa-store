@@ -45,8 +45,9 @@ export default async function paymentSuccessHandler({
 
     // Encontrar el pago específico para obtener el provider_id
     const payment = order.payment_collections
-      ?.flatMap(pc => pc.payments)
-      .find(p => p.id === paymentId);
+      ?.flatMap(pc => pc?.payments) // Añade optional chaining para manejar pc nulo
+      .filter(Boolean) // Filtra cualquier resultado nulo/undefined del flatMap
+      .find(p => p.id === paymentId); // Ahora 'p' no puede ser nulo aquí
 
     if (!order?.customer?.email) {
       logger.warn("⚠️ No se encontró email del cliente en la orden.")

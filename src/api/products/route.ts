@@ -137,20 +137,28 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   }
 }
 
+type ProductVariantBody = {
+  title: string
+  price: number
+  quantity?: number
+}
+
 type CreateProductBody = {
   title: string
-  description: string
-  price: number
+  description?: string
   thumbnail?: string
   images?: string[]
+  variants: ProductVariantBody[]
 }
 
 export async function POST(req: MedusaRequest<CreateProductBody>, res: MedusaResponse) {
   // 1️⃣ Auth Check
   const authHeader = req.headers.authorization
   if (!authHeader) {
+    console.warn("⚠️ No authorization header received in POST /products")
     return res.status(401).json({ error: "No authorization header" })
   }
+  console.log("📨 Received Authorization Header:", authHeader.substring(0, 20) + "...")
 
   const token = authHeader.replace("Bearer ", "")
   const jwtSecret = process.env.JWT_SECRET
@@ -164,8 +172,13 @@ export async function POST(req: MedusaRequest<CreateProductBody>, res: MedusaRes
   try {
     const decoded = jwt.verify(token, jwtSecret) as { customer_id: string }
     customer_id = decoded.customer_id
-  } catch (err) {
-    return res.status(401).json({ error: "Invalid token" })
+    console.log("✅ Token verified for customer:", customer_id)
+  } catch (err: any) {
+    console.error("❌ Token verification failed:", err.message)
+    if (token.startsWith("sk_")) {
+      console.warn("🚨 WARNING: It looks like an API Key (sk_...) was sent instead of a JWT!")
+    }
+    return res.status(401).json({ error: "Invalid token", details: err.message })
   }
 
   // 2️⃣ Seller Check
@@ -179,24 +192,25 @@ export async function POST(req: MedusaRequest<CreateProductBody>, res: MedusaRes
   const seller = sellers[0]
 
   try {
-    const { title, description, price, thumbnail, images, quantity } = req.body as CreateProductBody & { quantity?: number }
+    const { title, description, thumbnail, images, variants } = req.body
 
-    if (!title || !price) {
+    if (!title || !variants || !variants.length) {
       return res.status(400).json({
         error: "Datos incompletos",
-        message: "El título y precio son requeridos"
+        message: "El título y al menos una variante son requeridos."
       })
     }
 
     // 3️⃣ Execute Workflow
     const { result: product } = await createSellerProductWorkflow(req.scope).run({
       input: {
+        // Product data
         title,
         description,
-        price,
         thumbnail,
         images,
-        quantity,
+        // Variants data
+        variants,
         seller_id: seller.id
       }
     })

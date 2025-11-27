@@ -1,4 +1,9 @@
+import { createProductVariantsWorkflow } from "@medusajs/medusa/core-flows"
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import type { IProductModuleService } from "@medusajs/framework/types"
+import { Modules } from "@medusajs/framework/utils"
+import jwt from "jsonwebtoken"
+import SellerService from "../../../modules/seller/service"
 
 function normalizePriceObject(price: any) {
   const original = typeof price?.amount === "number" ? price.amount : Number(price?.amount ?? 0)
@@ -127,6 +132,115 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     res.status(500).json({
       error: "Error al obtener producto",
       message: error?.message ?? String(error)
+    })
+  }
+}
+
+type ProductVariantBody = {
+  title: string
+  price: number
+  quantity?: number
+}
+
+type AddVariantsBody = {
+  variants: ProductVariantBody[]
+}
+
+export async function POST(req: MedusaRequest<AddVariantsBody>, res: MedusaResponse) {
+  const productId = req.params.id
+
+  // 1️⃣ Auth Check
+  const authHeader = req.headers.authorization
+  if (!authHeader) {
+    return res.status(401).json({ error: "No authorization header" })
+  }
+
+  const token = authHeader.replace("Bearer ", "")
+  const jwtSecret = process.env.JWT_SECRET
+
+  if (!jwtSecret) {
+    return res.status(500).json({ error: "JWT_SECRET not configured" })
+  }
+
+  let customer_id: string
+  try {
+    const decoded = jwt.verify(token, jwtSecret) as { customer_id: string }
+    customer_id = decoded.customer_id
+  } catch (err) {
+    return res.status(401).json({ error: "Invalid token" })
+  }
+
+  // 2️⃣ Seller Check
+  const sellerModule = req.scope.resolve("seller") as SellerService
+  const sellers = await sellerModule.listSellers({ user_id: customer_id })
+
+  if (sellers.length === 0) {
+    return res.status(403).json({ error: "You must be a registered seller to add variants" })
+  }
+  const seller = sellers[0]
+
+  // 3️⃣ Product and Variant Validation
+  const { variants } = req.body
+  if (!variants || !variants.length) {
+    return res.status(400).json({
+      error: "Datos incompletos",
+      message: "Se requiere al menos una variante para añadir."
+    })
+  }
+
+  const productModule = req.scope.resolve(Modules.PRODUCT) as IProductModuleService
+
+  try {
+    // 4️⃣ Verify Product Ownership
+    const product = await productModule.retrieveProduct(productId)
+
+    if (!product) {
+      return res.status(404).json({ error: "Producto no encontrado" })
+    }
+
+    if (product.metadata?.seller_id !== seller.id) {
+      return res.status(403).json({ error: "No tienes permiso para modificar este producto" })
+    }
+
+    // 5️⃣ Prepare and Create Variants
+    const variantsToCreate = variants.map(v => ({
+      product_id: productId,
+      title: v.title,
+      prices: [{
+        amount: v.price,
+        currency_code: "mxn"
+      }]
+    }))
+
+    const { result: newVariants } = await createProductVariantsWorkflow(req.scope).run({
+      input: {
+        product_variants: variantsToCreate
+      }
+    })
+
+    // Opcional: Refrescar el producto para devolverlo completo con las nuevas variantes
+    const updatedProduct = await productModule.retrieveProduct(productId, {
+      relations: ["variants", "variants.prices", "variants.inventory_items"]
+    })
+
+    res.status(201).json({
+      success: true,
+      message: `${newVariants.length} variante(s) añadida(s) correctamente.`,
+      product: updatedProduct
+    })
+
+  } catch (error: any) {
+    console.error(`Error añadiendo variantes al producto ${productId}:`, error)
+
+    // Manejar errores específicos de Medusa
+    if (error.type === 'not_found') {
+      return res.status(404).json({ error: "Producto no encontrado" })
+    }
+
+    res.status(500).json({
+      success: false,
+      error: "Error al añadir variantes",
+      message: error.message ?? String(error)
     })
   }
 }
