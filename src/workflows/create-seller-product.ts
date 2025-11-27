@@ -104,24 +104,9 @@ export const createSellerProductWorkflow = createWorkflow(
         const product = transform({ products }, (data) => data.products[0])
         const variant = transform({ product }, (data) => data.product.variants[0])
 
-        // 2. Link Product-Seller (avoid duplicate links)
-        const query = container.resolve(ContainerRegistrationKeys.QUERY);
-        const existingLinks = await query.graph({
-            entity: "link",
-            fields: ["id"],
-            filters: {
-                seller_id: input.seller_id,
-                product_id: product.id,
-            },
-        });
-        if (!existingLinks?.length) {
-            createRemoteLinkStep([
-                {
-                    seller: { seller_id: input.seller_id },
-                    [Modules.PRODUCT]: { product_id: product.id },
-                },
-            ]);
-        }
+        // 2. Link Product-Seller
+        // The linking is now handled by the separate 'link-seller-product' workflow
+        // to avoid duplicate link errors and ensure idempotency.
 
         // 3. Create Inventory Levels
         createInventoryLevelsStep({

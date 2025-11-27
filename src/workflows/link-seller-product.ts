@@ -5,29 +5,20 @@ import {
     createStep,
 } from "@medusajs/framework/workflows-sdk"
 import { Modules, ContainerRegistrationKeys } from "@medusajs/framework/utils"
-import { createRemoteLinkStep } from "@medusajs/medusa/core-flows"
 
-/**
- * Input for linking a seller with a product.
- */
 type LinkSellerProductInput = {
     seller_id: string
     product_id: string
 }
 
-/**
- * Workflow that safely creates a link between a seller and a product.
- * It first checks whether the link already exists to avoid the
- * "Cannot create multiple links" error.
- */
-export const linkSellerProductWorkflow = createWorkflow(
-    "link-seller-product",
-    (input: LinkSellerProductInput) => {
-        // Resolve the query service to inspect existing links
+const ensureSellerProductLinkStep = createStep(
+    "ensure-seller-product-link-step",
+    async (input: LinkSellerProductInput, { container }) => {
         const query = container.resolve(ContainerRegistrationKeys.QUERY)
+        const remoteLink = container.resolve(ContainerRegistrationKeys.REMOTE_LINK)
 
-        // 1️⃣ Check if the link already exists
-        const existingLinks = query.graph({
+        // 1. Check if link exists
+        const { data: existingLinks } = await query.graph({
             entity: "link",
             fields: ["id"],
             filters: {
@@ -36,23 +27,26 @@ export const linkSellerProductWorkflow = createWorkflow(
             },
         })
 
-        // 2️⃣ Create the link only when it does NOT exist
-        const createLinkStep = createStep(
-            "create-seller-product-link",
-            async (_, { container }) => {
-                const links = await existingLinks
-                if (!links?.length) {
-                    createRemoteLinkStep([
-                        {
-                            seller: { seller_id: input.seller_id },
-                            [Modules.PRODUCT]: { product_id: input.product_id },
-                        },
-                    ])
-                }
-            }
-        )
+        if (existingLinks.length > 0) {
+            return { success: true, link: existingLinks[0] }
+        }
 
-        // No explicit return needed, but we expose a response for consistency
+        // 2. Create link if it doesn't exist
+        const links = await remoteLink.create([
+            {
+                seller: { seller_id: input.seller_id },
+                [Modules.PRODUCT]: { product_id: input.product_id },
+            },
+        ])
+
+        return { success: true, link: links[0] }
+    }
+)
+
+export const linkSellerProductWorkflow = createWorkflow(
+    "link-seller-product",
+    (input: LinkSellerProductInput) => {
+        ensureSellerProductLinkStep(input)
         return new WorkflowResponse({ success: true })
     }
 )
