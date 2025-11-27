@@ -18,17 +18,13 @@ const ensureSellerProductLinkStep = createStep(
         const remoteLink = container.resolve(ContainerRegistrationKeys.REMOTE_LINK)
 
         // 1. Check if link exists
-        const { data: existingLinks } = await query.graph({
-            entity: "link",
-            fields: ["id"],
-            filters: {
-                seller_id: input.seller_id,
-                product_id: input.product_id,
-            },
+        const existingLinks = await remoteLink.list({
+            seller: { seller_id: input.seller_id },
+            [Modules.PRODUCT]: { product_id: input.product_id },
         })
 
         if (existingLinks.length > 0) {
-            return { success: true, link: existingLinks[0] }
+            return { success: true }
         }
 
         // 2. Create link if it doesn't exist

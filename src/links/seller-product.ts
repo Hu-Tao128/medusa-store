@@ -9,6 +9,7 @@ export default defineLink(
         linkable: "seller_id",
         primaryKey: "id",
         entity: "Seller",
+        isList: true,
     },
     {
         serviceName: Modules.PRODUCT,
@@ -16,5 +17,6 @@ export default defineLink(
         linkable: "product_id",
         primaryKey: "id",
         entity: "Product",
+        isList: true,
     }
 )

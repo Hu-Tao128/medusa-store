@@ -82,6 +82,9 @@ export const createSellerProductWorkflow = createWorkflow(
                         values: data.input.variants.map(v => v.title)
                     }
                 ],
+                metadata: {
+                    seller_id: data.input.seller_id
+                },
                 variants: data.input.variants.map(v => ({
                     title: v.title,
                     manage_inventory: Boolean(v.quantity && v.quantity > 0),
@@ -105,8 +108,8 @@ export const createSellerProductWorkflow = createWorkflow(
         const variant = transform({ product }, (data) => data.product.variants[0])
 
         // 2. Link Product-Seller
-        // The linking is now handled by the separate 'link-seller-product' workflow
-        // to avoid duplicate link errors and ensure idempotency.
+        // We now use metadata to link products to sellers, so no explicit link step is needed here.
+        // The seller_id is added to the product metadata in the transform step above.
 
         // 3. Create Inventory Levels
         createInventoryLevelsStep({

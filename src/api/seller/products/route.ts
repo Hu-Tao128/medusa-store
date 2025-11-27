@@ -37,27 +37,25 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     const query = req.scope.resolve("query")
 
     try {
-        // 3️⃣ Fetch Linked Products
-        // We query the 'seller' entity and ask for its linked 'product' resources
-        const { data: sellerWithProducts } = await query.graph({
-            entity: "seller",
+        // 3. Fetch Linked Products (Metadata approach)
+        // We query the 'product' entity directly and filter by metadata.seller_id
+        const { data: products } = await query.graph({
+            entity: "product",
             fields: [
                 "id",
-                "products.*",
-                "products.variants.*",
-                "products.variants.prices.*",
-                "products.images.*"
+                "title",
+                "thumbnail",
+                "status",
+                "variants.*",
+                "variants.prices.*",
+                "images.*"
             ],
             filters: {
-                id: seller.id
+                metadata: {
+                    seller_id: seller.id
+                }
             }
         })
-
-        if (!sellerWithProducts || sellerWithProducts.length === 0) {
-            return res.json({ products: [], count: 0 })
-        }
-
-        const products = (sellerWithProducts[0] as any).products || []
 
         res.json({
             products,
