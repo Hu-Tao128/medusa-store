@@ -1,9 +1,20 @@
 import { defineLink } from "@medusajs/framework/utils"
-import SellerModule from "../modules/seller"
-import ProductModule from "@medusajs/product"
+
 import { Modules } from "@medusajs/framework/utils"
 
 export default defineLink(
-    SellerModule.linkable.seller,
-    ProductModule.linkable.product
+    {
+        serviceName: "seller",
+        field: "seller",
+        linkable: "seller_id",
+        primaryKey: "id",
+        entity: "Seller",
+    },
+    {
+        serviceName: Modules.PRODUCT,
+        field: "products",
+        linkable: "product_id",
+        primaryKey: "id",
+        entity: "Product",
+    }
 )
