@@ -1,5 +1,5 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import type { IProductModuleService, IPricingModuleService } from "@medusajs/framework/types"
+import type { IProductModuleService, IPricingModuleService, IFulfillmentModuleService } from "@medusajs/framework/types"
 import { Modules } from "@medusajs/framework/utils"
 import jwt from "jsonwebtoken"
 import SellerService from "../../modules/seller/service"
@@ -148,6 +148,8 @@ type CreateProductBody = {
   description?: string
   thumbnail?: string
   images?: string[]
+  collection_id?: string
+  category_ids?: string[]
   variants: ProductVariantBody[]
 }
 
@@ -192,7 +194,7 @@ export async function POST(req: MedusaRequest<CreateProductBody>, res: MedusaRes
   const seller = sellers[0]
 
   try {
-    const { title, description, thumbnail, images, variants } = req.body
+    const { title, description, thumbnail, images, variants, collection_id, category_ids } = req.body
 
     if (!title || !variants || !variants.length) {
       return res.status(400).json({
@@ -202,6 +204,11 @@ export async function POST(req: MedusaRequest<CreateProductBody>, res: MedusaRes
     }
 
     // 3️⃣ Execute Workflow
+    // Fetch default shipping profile
+    const fulfillmentService: IFulfillmentModuleService = req.scope.resolve(Modules.FULFILLMENT)
+    const shippingProfiles = await fulfillmentService.listShippingProfiles({}, { take: 1 })
+    const shippingProfileId = shippingProfiles[0]?.id
+
     const { result: product } = await createSellerProductWorkflow(req.scope).run({
       input: {
         // Product data
@@ -211,7 +218,10 @@ export async function POST(req: MedusaRequest<CreateProductBody>, res: MedusaRes
         images,
         // Variants data
         variants,
-        seller_id: seller.id
+        seller_id: seller.id,
+        shipping_profile_id: shippingProfileId,
+        collection_id,
+        category_ids
       }
     })
 

@@ -16,6 +16,9 @@ type CreateSellerProductInput = {
     thumbnail?: string
     images?: string[]
     seller_id: string
+    shipping_profile_id?: string
+    collection_id?: string
+    category_ids?: string[]
     variants: {
         title: string
         price: number
@@ -76,6 +79,9 @@ export const createSellerProductWorkflow = createWorkflow(
                 status: "published" as ProductStatus,
                 thumbnail: data.input.thumbnail,
                 images: data.input.images?.map(url => ({ url })),
+                shipping_profile_id: data.input.shipping_profile_id,
+                collection_id: data.input.collection_id,
+                category_ids: data.input.category_ids,
                 options: [
                     {
                         title: "Variant",
