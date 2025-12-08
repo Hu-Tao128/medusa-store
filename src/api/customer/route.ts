@@ -35,14 +35,6 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
 
     if (customers && customers.length > 0) {
       customer = customers[0]
-
-      if (!customer.first_name && firstName) {
-        const customerModule = req.scope.resolve("customer")
-        customer = await customerModule.updateCustomers(customer.id, {
-          first_name: firstName,
-          last_name: lastName
-        })
-      }
     } else {
       const customerModule = req.scope.resolve("customer")
       customer = await customerModule.createCustomers({
@@ -52,7 +44,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
       })
     }
 
-    // ⬇️ NUEVO: Sincronizar datos de Firestore (Roles y Seller)
+    // ⬇️ NUEVO: Sincronizar datos de Firestore (Roles, Seller y Address)
     try {
       const firestore = admin.firestore()
       const userDoc = await firestore.collection("users").doc(firebaseUid).get()
@@ -62,6 +54,36 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
         const role = userData?.role
 
         console.log("Firestore User Data:", userData)
+
+        // --- SYNC PROFILE (Name & Phone) ---
+        const firestoreName = userData?.name || ""
+        const firestorePhone = userData?.phoneNumber || ""
+
+        let targetFirstName = firstName
+        let targetLastName = lastName
+
+        if (firestoreName) {
+          const parts = firestoreName.split(" ")
+          targetFirstName = parts[0]
+          targetLastName = parts.slice(1).join(" ")
+        }
+
+        const customerModule = req.scope.resolve("customer")
+
+        // Check if we need to update basic info
+        if (
+          (targetFirstName && customer.first_name !== targetFirstName) ||
+          (targetLastName && customer.last_name !== targetLastName) ||
+          (firestorePhone && customer.phone !== firestorePhone)
+        ) {
+          console.log("Syncing Profile: Firestore -> Medusa")
+          customer = await customerModule.updateCustomers(customer.id, {
+            first_name: targetFirstName,
+            last_name: targetLastName,
+            phone: firestorePhone
+          })
+          console.log("✅ Customer profile updated from Firestore")
+        }
 
         if (role === "seller") {
           const sellerModule = req.scope.resolve("seller")
@@ -94,6 +116,56 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
             })
             console.log("✅ Nuevo Seller creado para:", customer.id)
           }
+        }
+
+        // --- SYNC ADDRESS ---
+        const firebaseAddress = userData?.address
+        // Re-fetch customer with addresses to be sure
+        const { data: customerWithAddresses } = await query.graph({
+          entity: "customer",
+          fields: ["id", "addresses.*"],
+          filters: { id: customer.id }
+        })
+        const medusaAddresses = customerWithAddresses[0]?.addresses || []
+
+        // 1. Firebase -> Medusa
+        if (firebaseAddress && medusaAddresses.length === 0) {
+          console.log("Syncing Address: Firebase -> Medusa")
+          const customerModule = req.scope.resolve("customer")
+
+          await customerModule.createCustomerAddresses({
+            customer_id: customer.id,
+            first_name: firstName,
+            last_name: lastName,
+            phone: userData?.phoneNumber || "",
+            address_1: firebaseAddress.street || "",
+            city: firebaseAddress.city || "",
+            province: firebaseAddress.state || "", // Mapping state to province directly as requested
+            country_code: "mx", // Defaulting to mx as per request if country is "México"
+            postal_code: firebaseAddress.zipCode || "",
+            metadata: {
+              source: "firebase_sync"
+            }
+          })
+          console.log("✅ Address created in Medusa from Firebase")
+        }
+        // 2. Medusa -> Firebase
+        else if (!firebaseAddress && medusaAddresses.length > 0) {
+          console.log("Syncing Address: Medusa -> Firebase")
+          const medusaAddr = medusaAddresses[0] // Sync the first one
+
+          const newFirebaseAddress = {
+            street: medusaAddr.address_1 || "",
+            city: medusaAddr.city || "",
+            state: medusaAddr.province || "",
+            country: "México", // Defaulting back
+            zipCode: medusaAddr.postal_code || ""
+          }
+
+          await firestore.collection("users").doc(firebaseUid).update({
+            address: newFirebaseAddress
+          })
+          console.log("✅ Address created in Firebase from Medusa")
         }
       }
     } catch (firestoreError) {
