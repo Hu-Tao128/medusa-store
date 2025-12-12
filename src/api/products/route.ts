@@ -8,18 +8,9 @@ import { createSellerProductWorkflow } from "../../workflows/create-seller-produ
 function normalizePriceObject(price: any) {
   const original = typeof price?.amount === "number" ? price.amount : Number(price?.amount ?? 0)
 
-  let amount_cents: number
-  let amount_units: number
-
-  if (Number.isInteger(original) && original > 1000) {
-
-    amount_cents = original
-    amount_units = +(original / 100).toFixed(2)
-  } else {
-
-    amount_cents = Math.round(original * 100)
-    amount_units = +(amount_cents / 100).toFixed(2)
-  }
+  // Always treat 'original' as units (e.g. 100.50) and convert to cents (10050)
+  const amount_cents = Math.round(original * 100)
+  const amount_units = original
 
   return {
     ...price,

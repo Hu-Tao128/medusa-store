@@ -11,15 +11,8 @@ function normalizePriceObject(price: any) {
   let amount_cents: number
   let amount_units: number
 
-  if (Number.isInteger(original) && original > 1000) {
-    // original viene en centavos
-    amount_cents = original
-    amount_units = +(original / 100).toFixed(2)
-  } else {
-    // original probablemente en unidades (p. ej. 250 o 250.5)
-    amount_cents = Math.round(original * 100)
-    amount_units = +(amount_cents / 100).toFixed(2)
-  }
+  amount_cents = Math.round(original * 100)
+  amount_units = +(amount_cents / 100).toFixed(2)
 
   return {
     ...price,
