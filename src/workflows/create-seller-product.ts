@@ -96,7 +96,7 @@ export const createSellerProductWorkflow = createWorkflow(
                     manage_inventory: Boolean(v.quantity && v.quantity > 0),
                     prices: [
                         {
-                            amount: Math.round(v.price * 100),
+                            amount: v.price,
                             currency_code: "mxn",
                         }
                     ],
